@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  ci:
+    name: Lint, Test & Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install server dependencies
+        run: npm install
+        working-directory: server
+
+      - name: Install web dependencies
+        run: npm install
+        working-directory: apps/web
+
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema=./prisma/schema.prisma
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=./prisma/schema.prisma
+
+      - name: Lint server
+        run: npm run lint
+        working-directory: server
+        continue-on-error: false
+
+      - name: Lint web
+        run: npm run lint
+        working-directory: apps/web
+        continue-on-error: false
+
+      - name: Run server tests
+        run: npm test
+        working-directory: server
+        env:
+          JWT_SECRET: test_secret
+          JWT_REFRESH_SECRET: test_refresh_secret
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+
+      - name: Build server
+        run: npm run build
+        working-directory: server
+
+      - name: Build web
+        run: npm run build
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_SOCKET_URL: http://localhost:4000

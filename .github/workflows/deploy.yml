@@ -1,0 +1,87 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Run CI checks
+    uses: ./.github/workflows/ci.yml
+
+  deploy-web:
+    name: Deploy Frontend to Vercel
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/web
+
+      - name: Build for Vercel
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/web
+
+      - name: Deploy to Vercel
+        id: deploy-vercel
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+        working-directory: apps/web
+
+      - name: Summary — Web
+        run: |
+          echo "### Frontend deployed" >> $GITHUB_STEP_SUMMARY
+          echo "URL: ${{ steps.deploy-vercel.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy-server:
+    name: Deploy Backend to Render
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render deploy hook
+        id: render-deploy
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}")
+          echo "status=$RESPONSE" >> $GITHUB_OUTPUT
+
+      - name: Check deploy status
+        run: |
+          if [ "${{ steps.render-deploy.outputs.status }}" != "200" ] && [ "${{ steps.render-deploy.outputs.status }}" != "201" ]; then
+            echo "Render deploy hook returned ${{ steps.render-deploy.outputs.status }}"
+            exit 1
+          fi
+
+      - name: Summary — Server
+        run: |
+          echo "### Backend deploy triggered on Render" >> $GITHUB_STEP_SUMMARY
+          echo "HTTP status: ${{ steps.render-deploy.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Notify result
+    needs: [deploy-web, deploy-server]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Final summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (Vercel) | ${{ needs.deploy-web.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend (Render)  | ${{ needs.deploy-server.result }} |" >> $GITHUB_STEP_SUMMARY
