@@ -4,7 +4,11 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
+    @apply bg-[#F0F2F5] text-gray-800 antialiased transition-colors duration-300;
+  }
+
+  .dark body {
+    @apply bg-[#1A1A2E] text-gray-100;
   }
 
   * {
@@ -15,9 +19,15 @@
     @apply w-1.5 h-1.5;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-slate-900;
+    @apply bg-gray-100;
+  }
+  .dark ::-webkit-scrollbar-track {
+    @apply bg-[#16213E];
   }
   ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+  .dark ::-webkit-scrollbar-thumb {
     @apply bg-slate-600 rounded-full;
   }
 }
@@ -29,5 +39,19 @@
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-slide-in-right {
+    animation: slideInRight 0.2s ease-out;
+  }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .animate-spin-once {
+    animation: spin 0.6s linear;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
   }
 }

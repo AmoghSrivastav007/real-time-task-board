@@ -39,6 +39,9 @@ export function setupSocketIO(io: Server): void {
 
   io.on('connection', (socket: AuthenticatedSocket) => {
     console.log(`Socket connected: ${socket.id} (user: ${socket.user?.email})`);
+    if (socket.user) {
+      socket.join(`user:${socket.user.id}`);
+    }
 
     // Join a board room after verifying membership
     socket.on('board:join', async (boardId: string) => {

@@ -6,7 +6,7 @@ import { useBoardStore } from '@/store/board';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import Column from './Column';
-import TaskModal from './TaskModal';
+import TaskModal from '@/components/TaskModal';
 import type { Task } from '@/store/board';
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function BoardCanvas({ boardId, viewMode }: Props) {
-  const { columns, moveTask, addColumn } = useBoardStore();
+  const { columns, moveTask } = useBoardStore();
   const { accessToken } = useAuthStore();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
@@ -47,27 +47,25 @@ export default function BoardCanvas({ boardId, viewMode }: Props) {
       await api.post(`/api/boards/${boardId}/columns`, { title: newColTitle }, accessToken);
       setNewColTitle('');
       setAddingColumn(false);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
         {viewMode === 'list' ? (
-          /* List view — vertical stacked */
-          <div className="p-6 max-w-3xl mx-auto">
+          <div className="p-4 md:p-6 max-w-4xl mx-auto transition-all duration-300">
             {columns.map((col) => (
               <Column key={col.id} column={col} onTaskClick={setSelectedTask} listView />
             ))}
           </div>
         ) : (
-          /* Kanban view — horizontal scroll */
-          <div className="flex gap-4 p-6 overflow-x-auto h-full items-start">
+          <div className="flex gap-4 p-4 md:p-6 overflow-x-auto h-full items-start transition-all duration-300">
             {columns.map((col) => (
               <Column key={col.id} column={col} onTaskClick={setSelectedTask} />
             ))}
-
-            {/* Add new list */}
             <div className="shrink-0 w-72">
               {addingColumn ? (
                 <form onSubmit={handleAddColumn} className="bg-white dark:bg-[#16213E] rounded-xl border border-gray-100 dark:border-slate-700/50 p-3 space-y-2 shadow-sm">
@@ -85,7 +83,10 @@ export default function BoardCanvas({ boardId, viewMode }: Props) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setAddingColumn(false); setNewColTitle(''); }}
+                      onClick={() => {
+                        setAddingColumn(false);
+                        setNewColTitle('');
+                      }}
                       className="px-3 py-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white text-sm transition-colors"
                     >
                       Cancel
@@ -108,9 +109,7 @@ export default function BoardCanvas({ boardId, viewMode }: Props) {
         )}
       </DragDropContext>
 
-      {selectedTask && (
-        <TaskModal task={selectedTask} boardId={boardId} onClose={() => setSelectedTask(null)} />
-      )}
+      {selectedTask && <TaskModal task={selectedTask} boardId={boardId} onClose={() => setSelectedTask(null)} />}
     </>
   );
 }

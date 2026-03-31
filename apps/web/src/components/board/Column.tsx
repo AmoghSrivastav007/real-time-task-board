@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import { useBoardStore, Column as ColumnType, Task } from '@/store/board';
 import { useAuthStore } from '@/store/auth';
@@ -22,17 +22,21 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  const activeTasks = column.tasks; // all tasks shown (no "done" field in schema yet)
-  const completedTasks: Task[] = []; // placeholder — no completed field in current schema
+  const activeTasks = column.tasks;
+  const completedTasks: Task[] = [];
 
   async function saveTitle() {
-    if (!title.trim() || title === column.title) { setEditingTitle(false); return; }
+    if (!title.trim() || title === column.title) {
+      setEditingTitle(false);
+      return;
+    }
     try {
       const updated = await api.patch<ColumnType>(`/api/columns/${column.id}`, { title }, accessToken!);
       updateColumn(updated);
-    } catch { setTitle(column.title); }
+    } catch {
+      setTitle(column.title);
+    }
     setEditingTitle(false);
   }
 
@@ -43,7 +47,9 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
       await api.post(`/api/columns/${column.id}/tasks`, { title: newTaskTitle }, accessToken);
       setNewTaskTitle('');
       setAddingTask(false);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function handleDelete() {
@@ -52,13 +58,15 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
     try {
       await api.delete(`/api/columns/${column.id}`, accessToken!);
       removeColumn(column.id);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   if (listView) {
     return (
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2 px-1">
+      <div className="mb-4 bg-white dark:bg-[#16213E] rounded-xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-4">
+        <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{column.title}</span>
           <span className="text-xs text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full">
             {column.tasks.length}
@@ -83,8 +91,7 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
   }
 
   return (
-    <div className="shrink-0 w-72 flex flex-col bg-white dark:bg-[#16213E] rounded-xl shadow-sm border border-gray-100 dark:border-slate-700/50 max-h-[calc(100vh-120px)]">
-      {/* Column header */}
+    <div className="shrink-0 w-72 flex flex-col bg-white dark:bg-[#16213E] rounded-xl shadow-sm border border-gray-100 dark:border-slate-700/50 max-h-[calc(100vh-120px)] transition-colors duration-300">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-700/50">
         {editingTitle ? (
           <input
@@ -94,7 +101,10 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
             onBlur={saveTitle}
             onKeyDown={(e) => {
               if (e.key === 'Enter') saveTitle();
-              if (e.key === 'Escape') { setTitle(column.title); setEditingTitle(false); }
+              if (e.key === 'Escape') {
+                setTitle(column.title);
+                setEditingTitle(false);
+              }
             }}
             className="flex-1 bg-transparent text-gray-800 dark:text-white text-sm font-semibold focus:outline-none border-b border-[#1A73E8]"
           />
@@ -107,40 +117,36 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
           </button>
         )}
         <div className="flex items-center gap-1.5 ml-2">
-          <span className="text-xs text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full">
-            {column.tasks.length}
-          </span>
-          {/* Three-dot menu */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-600 dark:hover:text-white transition-colors"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#1e2d4a] border border-gray-100 dark:border-slate-700 rounded-lg shadow-lg z-20 py-1 animate-fade-in">
-                <button
-                  onClick={() => { setMenuOpen(false); setEditingTitle(true); }}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                >
-                  Rename
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  Delete column
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-600 dark:hover:text-white transition-colors"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <div className="absolute mt-28 w-36 bg-white dark:bg-[#1e2d4a] border border-gray-100 dark:border-slate-700 rounded-lg shadow-lg z-20 py-1 animate-fade-in">
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  setEditingTitle(true);
+                }}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                Rename
+              </button>
+              <button
+                onClick={handleDelete}
+                className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                Delete column
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Add task button at top */}
       <div className="px-3 pt-3">
         {addingTask ? (
           <form onSubmit={handleAddTask} className="space-y-2 mb-2">
@@ -158,7 +164,10 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
               </button>
               <button
                 type="button"
-                onClick={() => { setAddingTask(false); setNewTaskTitle(''); }}
+                onClick={() => {
+                  setAddingTask(false);
+                  setNewTaskTitle('');
+                }}
                 className="px-3 py-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white text-xs transition-colors"
               >
                 Cancel
@@ -178,7 +187,6 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
         )}
       </div>
 
-      {/* Task list */}
       <Droppable droppableId={column.id}>
         {(provided, snapshot) => (
           <div
@@ -196,23 +204,22 @@ export default function Column({ column, onTaskClick, listView = false }: Props)
         )}
       </Droppable>
 
-      {/* Completed section */}
-      {completedTasks.length > 0 && (
-        <div className="border-t border-gray-100 dark:border-slate-700/50 px-3 py-2">
-          <button
-            onClick={() => setCompletedOpen((v) => !v)}
-            className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors w-full"
-          >
-            <svg
-              className={`w-3 h-3 transition-transform ${completedOpen ? 'rotate-90' : ''}`}
-              fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-            Completed ({completedTasks.length})
-          </button>
-        </div>
-      )}
+      <div className="border-t border-gray-100 dark:border-slate-700/50 px-3 py-2">
+        <button
+          onClick={() => setCompletedOpen((v) => !v)}
+          className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors w-full"
+        >
+          <svg className={`w-3 h-3 transition-transform ${completedOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          Completed ({completedTasks.length})
+        </button>
+        {completedOpen && (
+          <div className="mt-2 text-xs text-gray-400 dark:text-slate-500">
+            No completed tasks
+          </div>
+        )}
+      </div>
     </div>
   );
 }

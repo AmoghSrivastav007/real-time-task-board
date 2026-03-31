@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { sendEmail } from '../lib/email';
 
 const router = Router();
 
@@ -40,6 +41,46 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response):
   const boardId = await getBoardIdFromTask(req.params.id);
   const io = req.app.get('io');
   if (boardId) io.to(boardId).emit('task:updated', task);
+
+  if (parsed.data.assigneeId && parsed.data.assigneeId !== req.user!.id) {
+    const notification = await prisma.notification.create({
+      data: {
+        userId: parsed.data.assigneeId,
+        message: `You were assigned: ${task.title}`,
+        type: 'ASSIGNED',
+        link: boardId ? `/board/${boardId}` : null,
+      },
+    });
+    io.to(`user:${parsed.data.assigneeId}`).emit('notification:new', notification);
+  }
+
+  // Fire-and-forget assignment email
+  if (parsed.data.assigneeId && parsed.data.assigneeId !== req.user!.id) {
+    (async () => {
+      try {
+        const assignee = await prisma.user.findUnique({ where: { id: parsed.data.assigneeId! } });
+        if (assignee?.emailNotifications) {
+          const fullTask = await prisma.task.findUnique({
+            where: { id: req.params.id },
+            include: { column: { include: { board: true } } },
+          });
+          if (fullTask) {
+            const boardUrl = `${process.env.CLIENT_URL}/board/${fullTask.column.boardId}`;
+            await sendEmail(
+              assignee.email,
+              `You have been assigned a task: ${task.title}`,
+              `<p>You have been assigned to task <strong>${task.title}</strong>.</p>
+               ${task.description ? `<p>${task.description}</p>` : ''}
+               <p>Board: <strong>${fullTask.column.board.title}</strong></p>
+               <p><a href="${boardUrl}">View board</a></p>`
+            );
+          }
+        }
+      } catch (err) {
+        console.error('[email] assignment notification error:', err);
+      }
+    })();
+  }
 
   res.json(task);
 });

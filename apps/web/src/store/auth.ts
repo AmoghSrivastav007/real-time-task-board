@@ -14,6 +14,7 @@ interface AuthState {
   refreshToken: string | null;
   setAuth: (user: AuthUser, accessToken: string, refreshToken: string) => void;
   setAccessToken: (token: string) => void;
+  updateUser: (updates: Partial<AuthUser>) => void;
   logout: () => void;
 }
 
@@ -25,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       setAuth: (user, accessToken, refreshToken) => set({ user, accessToken, refreshToken }),
       setAccessToken: (accessToken) => set({ accessToken }),
+      updateUser: (updates) => set((s) => (s.user ? { user: { ...s.user, ...updates } } : s)),
       logout: () => set({ user: null, accessToken: null, refreshToken: null }),
     }),
     { name: 'auth-storage' }

@@ -1,45 +1,74 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { useBoardStore } from '@/store/board';
-import { getSocket, disconnectSocket } from '@/lib/socket';
-import BoardCanvas from '@/components/BoardCanvas';
-import PresenceBar from '@/components/PresenceBar';
+import { getSocket } from '@/lib/socket';
+import BoardCanvas from '@/components/board/BoardCanvas';
 import InviteModal from '@/components/InviteModal';
+import TopNavbar from '@/components/layout/TopNavbar';
+import Sidebar from '@/components/layout/Sidebar';
+import PresenceBar from '@/components/PresenceBar';
+import Toast from '@/components/ui/Toast';
+
+type ViewMode = 'kanban' | 'list';
 
 export default function BoardPage() {
   const { id: boardId } = useParams<{ id: string }>();
   const router = useRouter();
-  const { accessToken, user, logout } = useAuthStore();
+  const { accessToken } = useAuthStore();
   const { setColumns, addColumn, updateColumn, removeColumn, addTask, updateTask, moveTask, removeTask, setPresence, removePresence } = useBoardStore();
+
   const [boardTitle, setBoardTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('viewMode') as ViewMode) ?? 'kanban';
+    }
+    return 'kanban';
+  });
+  const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const loadBoard = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const cols = await api.get<any[]>(`/api/boards/${boardId}/columns`, accessToken);
+      setColumns(cols);
+    } catch { router.push('/dashboard'); }
+  }, [boardId, accessToken, setColumns, router]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadBoard();
+    setRefreshing(false);
+    setToast('Board refreshed');
+  }
+
+  function handleToggleView() {
+    setViewMode((v) => {
+      const next = v === 'kanban' ? 'list' : 'kanban';
+      localStorage.setItem('viewMode', next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!accessToken) { router.push('/auth/login'); return; }
 
-    // Load columns + tasks
-    api.get<any[]>(`/api/boards/${boardId}/columns`, accessToken)
-      .then((cols) => {
-        setColumns(cols);
-        setLoading(false);
-      })
-      .catch(() => router.push('/dashboard'));
+    loadBoard().then(() => setLoading(false));
 
-    // Load board title
     api.get<any[]>('/api/boards', accessToken).then((boards) => {
       const board = boards.find((b: any) => b.id === boardId);
       if (board) setBoardTitle(board.title);
     });
 
-    // Socket setup
     const socket = getSocket(accessToken);
-
     socket.emit('board:join', boardId);
 
     socket.on('task:created', addTask);
@@ -70,49 +99,90 @@ export default function BoardPage() {
     };
   }, [boardId, accessToken]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      if (window.innerWidth >= 768) {
+        setMobileSidebarOpen(false);
+      }
+      if (window.innerWidth >= 768 && window.innerWidth <= 1024) {
+        setSidebarCollapsed(true);
+      }
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-500">Loading board...</div>
+      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#1A1A2E] flex items-center justify-center">
+        <div className="text-gray-400 dark:text-slate-500">Loading board...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Navbar */}
-      <nav className="border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors text-sm">
-            ← Boards
-          </Link>
-          <h1 className="text-white font-semibold">{boardTitle}</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <PresenceBar />
-          <button
-            onClick={() => setShowInvite(true)}
-            className="text-sm px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white transition-colors"
-          >
-            + Invite
-          </button>
-          <button
-            onClick={() => { logout(); disconnectSocket(); router.push('/'); }}
-            className="text-sm text-slate-500 hover:text-white transition-colors"
-          >
-            Sign out
-          </button>
-        </div>
-      </nav>
+    <div className="h-screen flex flex-col bg-[#F0F2F5] dark:bg-[#1A1A2E] overflow-hidden">
+      <TopNavbar
+        onToggleSidebar={() => {
+          if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setMobileSidebarOpen((v) => !v);
+            return;
+          }
+          setSidebarCollapsed((v) => !v);
+        }}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        viewMode={viewMode}
+        onToggleView={handleToggleView}
+        showBoardControls
+      />
 
-      {/* Board canvas */}
-      <div className="flex-1 overflow-hidden">
-        <BoardCanvas boardId={boardId} />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar — hidden on mobile */}
+        <div className="hidden md:block">
+          <Sidebar collapsed={sidebarCollapsed} />
+        </div>
+        {mobileSidebarOpen && (
+          <div className="md:hidden fixed inset-0 z-50">
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              className="absolute inset-0 bg-black/40"
+            />
+            <Sidebar
+              collapsed={false}
+              onSelect={() => setMobileSidebarOpen(false)}
+              className="relative h-full w-64 shadow-2xl bg-[#F8F9FA] dark:bg-[#16213E]"
+            />
+          </div>
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Board header */}
+          <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-200 dark:border-slate-700/50 bg-white dark:bg-[#16213E] shrink-0">
+            <h1 className="font-semibold text-gray-800 dark:text-white">{boardTitle || 'Main Board'}</h1>
+            <div className="flex items-center gap-3">
+              <PresenceBar />
+              <button
+                onClick={() => setShowInvite(true)}
+                className="text-sm px-3 py-1.5 rounded-lg bg-[#1A73E8] hover:bg-blue-600 text-white transition-colors"
+              >
+                + Invite
+              </button>
+            </div>
+          </div>
+
+          {/* Board canvas */}
+          <div className="flex-1 overflow-hidden">
+            <BoardCanvas boardId={boardId} viewMode={viewMode} />
+          </div>
+        </main>
       </div>
 
-      {showInvite && (
-        <InviteModal boardId={boardId} onClose={() => setShowInvite(false)} />
-      )}
+      {showInvite && <InviteModal boardId={boardId} onClose={() => setShowInvite(false)} />}
+      {toast && <Toast message={toast} onDone={() => setToast('')} />}
     </div>
   );
 }

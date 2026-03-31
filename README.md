@@ -1,6 +1,17 @@
 # Real-Time Collaborative Task Board
 
-A production-grade Kanban board with real-time collaboration, role-based access control, and drag-and-drop task management.
+A production-grade Kanban board with real-time collaboration, role-based access control, drag-and-drop task management, task comments, file attachments, and email notifications.
+
+## Features
+
+- Real-time collaborative Kanban board with Socket.io
+- JWT authentication with access + refresh tokens
+- Role-based access control (Admin / Member / Viewer)
+- Drag-and-drop task reordering across columns (@hello-pangea/dnd)
+- Task comments — create, edit, delete with live updates
+- File attachments — upload to Supabase Storage, up to 10MB per file
+- Email notifications via Resend — task assignment, comments, board invites
+- Per-user email notification toggle in Settings
 
 ---
 
@@ -120,6 +131,9 @@ Open http://localhost:3000
 | `CLIENT_URL`         | Frontend URL for CORS                    | `http://localhost:3000`          |
 | `PORT`               | Express server port                      | `4000`                           |
 | `SOCKET_CORS_ORIGIN` | Socket.io CORS origin                    | `http://localhost:3000`          |
+| `SUPABASE_URL`       | Supabase project URL                     | `https://xxx.supabase.co`        |
+| `SUPABASE_SERVICE_KEY` | Supabase service role key              | from Supabase dashboard          |
+| `RESEND_API_KEY`     | Resend API key for email notifications   | from resend.com                  |
 
 ### Frontend (`/apps/web/.env.local`)
 

@@ -10,6 +10,10 @@ import boardRoutes from './routes/boards';
 import columnRoutes from './routes/columns';
 import taskRoutes from './routes/tasks';
 import memberRoutes from './routes/members';
+import commentRoutes from './routes/comments';
+import attachmentRoutes from './routes/attachments';
+import userRoutes from './routes/users';
+import notificationRoutes from './routes/notifications';
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -36,6 +40,12 @@ app.use('/api/boards', boardRoutes);
 app.use('/api/boards', memberRoutes);
 app.use('/api/columns', columnRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/tasks/:taskId/comments', commentRoutes);
+app.use('/api/tasks/:taskId/attachments', attachmentRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/attachments', attachmentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
