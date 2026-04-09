@@ -18,22 +18,48 @@ import notificationRoutes from './routes/notifications';
 const app = express();
 const httpServer = http.createServer(app);
 
-const allowedOrigin = (process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/$/, '');
+// All allowed origins — env vars + localhost always included for local dev
+const allowedOrigins = [
+  ...new Set(
+    [
+      process.env.CLIENT_URL,
+      process.env.SOCKET_CORS_ORIGIN,
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ]
+      .filter(Boolean)
+      .map((o) => o!.replace(/\/$/, ''))
+  ),
+];
+
+function isAllowed(origin: string | undefined): boolean {
+  if (!origin) return true; // allow Postman / server-to-server
+  return allowedOrigins.includes(origin.replace(/\/$/, ''));
+}
 
 const io = new Server(httpServer, {
   cors: {
-    origin: (process.env.SOCKET_CORS_ORIGIN || 'http://localhost:3000').replace(/\/$/, ''),
+    origin: (origin, cb) => {
+      if (isAllowed(origin)) cb(null, true);
+      else cb(new Error(`Socket CORS blocked: ${origin}`));
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
 });
 
-// Attach io to app for use in route handlers
 app.set('io', io);
 
-app.use(cors({ origin: allowedOrigin, credentials: true }));
+app.use(cors({
+  origin: (origin, cb) => {
+    if (isAllowed(origin)) cb(null, true);
+    else cb(new Error(`CORS blocked: ${origin}`));
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
-app.use(responseTime((req, res, time) => {
+app.use(responseTime((req, _res, time) => {
   console.log(`[${req.method}] ${req.url} - ${time.toFixed(2)}ms`);
 }));
 
@@ -56,6 +82,7 @@ setupSocketIO(io);
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
 });
 
 export { app, httpServer, io };
