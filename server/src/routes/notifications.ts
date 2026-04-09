@@ -25,9 +25,9 @@ router.patch('/read-all', authenticateToken, async (req: AuthRequest, res: Respo
 
 // PATCH /api/notifications/:id
 router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
-  const existing = await prisma.notification.findUnique({ where: { id: req.params.id } });
-  if (!existing || existing.userId !== req.user!.id) {
-    res.status(404).json({ error: 'Notification not found' });
+  const notification = await prisma.notification.findUnique({ where: { id: req.params.id } });
+  if (!notification || notification.userId !== req.user!.id) {
+    res.status(404).json({ error: 'Not found' });
     return;
   }
   const updated = await prisma.notification.update({

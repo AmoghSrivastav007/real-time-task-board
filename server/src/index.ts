@@ -18,9 +18,11 @@ import notificationRoutes from './routes/notifications';
 const app = express();
 const httpServer = http.createServer(app);
 
+const allowedOrigin = (process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/$/, '');
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.SOCKET_CORS_ORIGIN || 'http://localhost:3000',
+    origin: (process.env.SOCKET_CORS_ORIGIN || 'http://localhost:3000').replace(/\/$/, ''),
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -29,7 +31,7 @@ const io = new Server(httpServer, {
 // Attach io to app for use in route handlers
 app.set('io', io);
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
+app.use(cors({ origin: allowedOrigin, credentials: true }));
 app.use(express.json());
 app.use(responseTime((req, res, time) => {
   console.log(`[${req.method}] ${req.url} - ${time.toFixed(2)}ms`);
