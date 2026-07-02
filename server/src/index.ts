@@ -40,8 +40,12 @@ function isAllowed(origin: string | undefined): boolean {
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, cb) => {
-      if (isAllowed(origin)) cb(null, true);
-      else cb(new Error(`Socket CORS blocked: ${origin}`));
+      if (isAllowed(origin)) {
+        cb(null, true);
+      } else {
+        console.log(`Socket CORS blocked: ${origin}`);
+        cb(null, false);
+      }
     },
     methods: ['GET', 'POST'],
     credentials: true,
@@ -52,8 +56,12 @@ app.set('io', io);
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (isAllowed(origin)) cb(null, true);
-    else cb(new Error(`CORS blocked: ${origin}`));
+    if (isAllowed(origin)) {
+      cb(null, true);
+    } else {
+      console.log(`CORS blocked: ${origin}`);
+      cb(null, false);
+    }
   },
   credentials: true,
 }));
