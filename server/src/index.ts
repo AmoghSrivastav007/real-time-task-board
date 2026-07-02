@@ -95,6 +95,21 @@ app.use('/api/notifications', notificationRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
+// Diagnostic endpoint (shows env vars without secrets)
+app.get('/debug/env', (_req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasDirectUrl: !!process.env.DIRECT_URL,
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    hasJwtRefreshSecret: !!process.env.JWT_REFRESH_SECRET,
+    hasClientUrl: !!process.env.CLIENT_URL,
+    clientUrl: process.env.CLIENT_URL,
+    allowedOrigins: allowedOrigins,
+  });
+});
+
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Express error:', err);
