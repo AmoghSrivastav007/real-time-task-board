@@ -14,9 +14,19 @@ import commentRoutes from './routes/comments';
 import attachmentRoutes from './routes/attachments';
 import userRoutes from './routes/users';
 import notificationRoutes from './routes/notifications';
+import prisma from './lib/prisma';
 
 const app = express();
 const httpServer = http.createServer(app);
+
+// Global error handlers
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 // All allowed origins — env vars + localhost always included for local dev
 const allowedOrigins = [
@@ -85,12 +95,38 @@ app.use('/api/notifications', notificationRoutes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
+// Global error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Express error:', err);
+  res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
 setupSocketIO(io);
 
 const PORT = process.env.PORT || 4000;
-httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
-});
+
+// Test database connection before starting server
+async function startServer() {
+  try {
+    console.log('Testing database connection...');
+    await prisma.$connect();
+    console.log('✅ Database connected successfully');
+    
+    httpServer.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to connect to database:', error);
+    console.error('Server will start but database operations will fail');
+    // Start server anyway so health check works
+    httpServer.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} (database connection failed)`);
+      console.log(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
+    });
+  }
+}
+
+startServer();
 
 export { app, httpServer, io };
